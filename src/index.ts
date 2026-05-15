@@ -23,10 +23,11 @@ const ZERO_HASH = "0".repeat(64);
 const DEFAULT_PROGRAM_ID =
   process.env.TRADESTARS_PROGRAM_ID ??
   "2YEsWGLfhsUwDWoFCEZQQeES8KN9jHHRXLkbtwoDQGV8";
-const DEFAULT_BASE_URL =
-  process.env.TRADESTARS_BASE_URL ?? "https://tradestars.xyz";
+const DEFAULT_BASE_URL = process.env.TRADESTARS_BASE_URL ?? "tradestars.app";
 const DEFAULT_RPC =
-  process.env.TRADESTARS_SOLANA_RPC ?? "https://api.devnet.solana.com";
+  process.env.SOLANA_RPC ??
+  process.env.TRADESTARS_SOLANA_RPC ??
+  "https://api.devnet.solana.com";
 
 const CLAIM_WINNINGS_DISCRIMINATOR = Buffer.from([
   161, 215, 24, 59, 14, 236, 242, 221,
@@ -170,7 +171,8 @@ function requiredArg(name: string): string {
 }
 
 function baseUrl(): string {
-  return (arg("--base-url") ?? DEFAULT_BASE_URL).replace(/\/$/, "");
+  const value = (arg("--base-url") ?? DEFAULT_BASE_URL).replace(/\/$/, "");
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
 }
 
 function rpcUrl(): string {
@@ -632,6 +634,7 @@ async function showClaimProof(): Promise<void> {
   const proof = await getJson<ClaimProof>(
     `/api/public/arenas/${arenaId}/claim-proof/${wallet}`,
   );
+  assertValid(proof.wallet === wallet, "claim proof wallet does not match requested wallet");
   verifyClaimProof(proof);
   console.log(JSON.stringify(proof, null, 2));
 }
@@ -724,9 +727,11 @@ async function replayEntry(): Promise<void> {
 async function claim(): Promise<void> {
   const arenaId = requiredArg("--arena");
   const keypair = readKeypair(requiredArg("--keypair"));
+  const wallet = keypair.publicKey.toBase58();
   const proof = await getJson<ClaimProof>(
-    `/api/public/arenas/${arenaId}/claim-proof/${keypair.publicKey.toBase58()}`,
+    `/api/public/arenas/${arenaId}/claim-proof/${wallet}`,
   );
+  assertValid(proof.wallet === wallet, "claim proof wallet does not match signing wallet");
   verifyClaimProof(proof);
   const connection = new Connection(rpcUrl(), "confirmed");
   const transaction = new Transaction().add(

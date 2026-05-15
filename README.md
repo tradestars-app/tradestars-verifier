@@ -4,7 +4,7 @@ Small public CLI for checking TradeStars arena proofs and claiming settled
 winnings directly from the Solana program.
 
 The CLI needs no company secrets. Verification is read-only. Claiming or
-refunds require the user's Solana keypair.
+refunds require a user-supplied Solana keypair file and sign locally.
 
 ## Install
 
@@ -44,10 +44,13 @@ pnpm dev refund \
 Optional defaults:
 
 ```bash
-TRADESTARS_BASE_URL=http://localhost:3000
-TRADESTARS_SOLANA_RPC=https://api.devnet.solana.com
+TRADESTARS_BASE_URL=tradestars.app
+SOLANA_RPC=https://api.devnet.solana.com
 TRADESTARS_PROGRAM_ID=2YEsWGLfhsUwDWoFCEZQQeES8KN9jHHRXLkbtwoDQGV8
 ```
+
+If `TRADESTARS_BASE_URL` is not set, the CLI uses `tradestars.app` and adds
+`https://` automatically. `SOLANA_RPC` controls the Solana RPC endpoint.
 
 `claim` fetches the wallet-specific Merkle branch from:
 
@@ -55,8 +58,14 @@ TRADESTARS_PROGRAM_ID=2YEsWGLfhsUwDWoFCEZQQeES8KN9jHHRXLkbtwoDQGV8
 /api/public/arenas/:arenaId/claim-proof/:wallet
 ```
 
-Then it calls `claim_winnings(locked_amount, payout_amount, proof)` with the
-user wallet as signer.
+Then it builds a `claim_winnings(locked_amount, payout_amount, proof)`
+instruction with the user wallet marked as the signer. For the `claim` command,
+the CLI reads the local JSON keypair passed with `--keypair`, verifies that the
+returned claim proof belongs to that wallet, and signs the transaction locally
+with `sendAndConfirmTransaction`. The private key is not sent to the TradeStars
+API or the Solana RPC endpoint, but it is loaded into this local process. Run
+`claim` and `refund` only from a trusted machine with a keypair file you are
+comfortable using in a CLI process.
 
 `replay-entry` fetches the public post-arena replay bundle and the arena's live
 commitment log. It verifies:
